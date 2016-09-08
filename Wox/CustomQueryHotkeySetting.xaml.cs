@@ -1,25 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
 using NHotkey;
 using NHotkey.Wpf;
 using Wox.Core.Resource;
-using Wox.Core.UserSettings;
 using Wox.Infrastructure.Hotkey;
+using Wox.Infrastructure.UserSettings;
 
 namespace Wox
 {
     public partial class CustomQueryHotkeySetting : Window
     {
-        private SettingWindow settingWidow;
+        private SettingWindow _settingWidow;
         private bool update;
         private CustomPluginHotkey updateCustomHotkey;
+        private Settings _settings;
 
-        public CustomQueryHotkeySetting(SettingWindow settingWidow)
+        public CustomQueryHotkeySetting(SettingWindow settingWidow, Settings settings)
         {
-            this.settingWidow = settingWidow;
+            _settingWidow = settingWidow;
             InitializeComponent();
+            _settings = settings;
         }
 
         private void BtnCancel_OnClick(object sender, RoutedEventArgs e)
@@ -37,9 +40,9 @@ namespace Wox
                     return;
                 }
 
-                if (UserSettingStorage.Instance.CustomPluginHotkeys == null)
+                if (_settings.CustomPluginHotkeys == null)
                 {
-                    UserSettingStorage.Instance.CustomPluginHotkeys = new List<CustomPluginHotkey>();
+                    _settings.CustomPluginHotkeys = new ObservableCollection<CustomPluginHotkey>();
                 }
 
                 var pluginHotkey = new CustomPluginHotkey
@@ -47,12 +50,12 @@ namespace Wox
                     Hotkey = ctlHotkey.CurrentHotkey.ToString(),
                     ActionKeyword = tbAction.Text
                 };
-                UserSettingStorage.Instance.CustomPluginHotkeys.Add(pluginHotkey);
+                _settings.CustomPluginHotkeys.Add(pluginHotkey);
 
                 SetHotkey(ctlHotkey.CurrentHotkey, delegate
                 {
                     App.API.ChangeQuery(pluginHotkey.ActionKeyword);
-                    App.API.ShowApp();
+                    Application.Current.MainWindow.Visibility = Visibility.Visible;
                 });
                 MessageBox.Show(InternationalizationManager.Instance.GetTranslation("succeed"));
             }
@@ -70,20 +73,18 @@ namespace Wox
                 RemoveHotkey(oldHotkey);
                 SetHotkey(new HotkeyModel(updateCustomHotkey.Hotkey), delegate
                 {
-                    App.API.ShowApp();
                     App.API.ChangeQuery(updateCustomHotkey.ActionKeyword);
+                    Application.Current.MainWindow.Visibility = Visibility.Visible;
                 });
                 MessageBox.Show(InternationalizationManager.Instance.GetTranslation("succeed"));
             }
 
-            UserSettingStorage.Instance.Save();
-            settingWidow.ReloadCustomPluginHotkeyView();
             Close();
         }
 
         public void UpdateItem(CustomPluginHotkey item)
         {
-            updateCustomHotkey = UserSettingStorage.Instance.CustomPluginHotkeys.FirstOrDefault(o => o.ActionKeyword == item.ActionKeyword && o.Hotkey == item.Hotkey);
+            updateCustomHotkey = _settings.CustomPluginHotkeys.FirstOrDefault(o => o.ActionKeyword == item.ActionKeyword && o.Hotkey == item.Hotkey);
             if (updateCustomHotkey == null)
             {
                 MessageBox.Show(InternationalizationManager.Instance.GetTranslation("invalidPluginHotkey"));
@@ -99,8 +100,8 @@ namespace Wox
 
         private void BtnTestActionKeyword_OnClick(object sender, RoutedEventArgs e)
         {
-            App.API.ShowApp();
             App.API.ChangeQuery(tbAction.Text);
+            Application.Current.MainWindow.Visibility = Visibility.Visible;
         }
 
         private void RemoveHotkey(string hotkeyStr)

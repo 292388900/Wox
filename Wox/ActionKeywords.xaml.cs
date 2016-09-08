@@ -1,8 +1,8 @@
 ﻿using System.Windows;
 using Wox.Core.Plugin;
 using Wox.Core.Resource;
-using Wox.Core.UserSettings;
 using Wox.Infrastructure.Exception;
+using Wox.Infrastructure.UserSettings;
 using Wox.Plugin;
 
 namespace Wox
@@ -10,14 +10,17 @@ namespace Wox
     public partial class ActionKeywords : Window
     {
         private PluginPair _plugin;
+        private Settings _settings;
+        private readonly Internationalization _translater = InternationalizationManager.Instance;
 
-        public ActionKeywords(string pluginId)
+        public ActionKeywords(string pluginId, Settings settings)
         {
             InitializeComponent();
             _plugin = PluginManager.GetPluginForId(pluginId);
+            _settings = settings;
             if (_plugin == null)
             {
-                MessageBox.Show(InternationalizationManager.Instance.GetTranslation("cannotFindSpecifiedPlugin"));
+                MessageBox.Show(_translater.GetTranslation("cannotFindSpecifiedPlugin"));
                 Close();
             }
         }
@@ -37,21 +40,18 @@ namespace Wox
         {
             var oldActionKeyword = _plugin.Metadata.ActionKeywords[0];
             var newActionKeyword = tbAction.Text.Trim();
-            try
+            if (!PluginManager.ActionKeywordRegistered(newActionKeyword))
             {
-                // update in-memory data
-                PluginManager.UpdateActionKeywordForPlugin(_plugin, oldActionKeyword, newActionKeyword);
+                var id = _plugin.Metadata.ID;
+                PluginManager.ReplaceActionKeyword(id, oldActionKeyword, newActionKeyword);
+                MessageBox.Show(_translater.GetTranslation("succeed"));
+                Close();
             }
-            catch (WoxPluginException e)
+            else
             {
-                MessageBox.Show(e.Message);
-                return;
+                string msg = _translater.GetTranslation("newActionKeywordsHasBeenAssigned");
+                MessageBox.Show(msg);
             }
-            // update persistant data
-            UserSettingStorage.Instance.UpdateActionKeyword(_plugin.Metadata);
-
-            MessageBox.Show(InternationalizationManager.Instance.GetTranslation("succeed"));
-            Close();
         }
     }
 }

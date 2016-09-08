@@ -1,152 +1,69 @@
-﻿using Wox.Core.Plugin;
-using Wox.Core.Resource;
-using Wox.Infrastructure;
-using Wox.Infrastructure.Hotkey;
+﻿using System;
+using System.Windows.Media;
+using System.Windows.Threading;
+using Wox.Infrastructure.Image;
+using Wox.Infrastructure.Logger;
 using Wox.Plugin;
-using Wox.Storage;
+
 
 namespace Wox.ViewModel
 {
-    public class ResultViewModel : BaseViewModel
+    public class ResultViewModel : BaseModel
     {
-        #region Private Fields
-
-        private bool _isSelected;
-
-        #endregion
-
-        #region Constructor
-
         public ResultViewModel(Result result)
         {
             if (result != null)
             {
-                RawResult = result;
-
-                OpenResultListBoxItemCommand = new RelayCommand(_ =>
-                {
-
-                    bool hideWindow = result.Action(new ActionContext
-                    {
-                        SpecialKeyState = GlobalHotkey.Instance.CheckModifiers()
-                    });
-
-                    if (hideWindow)
-                    {
-                        App.API.HideApp();
-                        UserSelectedRecordStorage.Instance.Add(RawResult);
-                        QueryHistoryStorage.Instance.Add(RawResult.OriginQuery.RawQuery);
-                    }
-                });
-
-                OpenContextMenuItemCommand = new RelayCommand(_ =>
-                {
-
-                    var actions = PluginManager.GetContextMenusForPlugin(result);
-
-                    var pluginMetaData = PluginManager.GetPluginForId(result.PluginID).Metadata;
-                    actions.ForEach(o =>
-                    {
-                        o.PluginDirectory = pluginMetaData.PluginDirectory;
-                        o.PluginID = result.PluginID;
-                        o.OriginQuery = result.OriginQuery;
-                    });
-
-                    actions.Add(GetTopMostContextMenu(result));
-
-                    App.API.ShowContextMenu(pluginMetaData, actions);
-
-                });
+                Result = result;
             }
         }
 
-
-        #endregion
-
-        #region ViewModel Properties
-
-        public string Title => RawResult.Title;
-
-        public string SubTitle => RawResult.SubTitle;
-
-        public string FullIcoPath => RawResult.FullIcoPath;
-
-        public bool IsSelected
+        public ImageSource Image
         {
-            get { return _isSelected; }
-            set
+            get
             {
-                _isSelected = value;
-                OnPropertyChanged();
+                if (string.IsNullOrEmpty(Result.IcoPath))
+                {
+                    try
+                    {
+                        return Result.Icon();
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Exception(e);
+                        return ImageLoader.Load(Result.IcoPath);
+                    }
+                }
+                else
+                {
+                    return ImageLoader.Load(Result.IcoPath);
+                }
             }
         }
 
-        public RelayCommand OpenResultListBoxItemCommand { get; set; }
-
-        public RelayCommand OpenContextMenuItemCommand { get; set; }
-
-        #endregion
-
-        #region Properties
-
-        public Result RawResult { get; }
-
-        #endregion
-
-        #region Private Methods
-
-        private Result GetTopMostContextMenu(Result result)
-        {
-            if (TopMostRecordStorage.Instance.IsTopMost(result))
-            {
-                return new Result(InternationalizationManager.Instance.GetTranslation("cancelTopMostInThisQuery"), "Images\\down.png")
-                {
-                    PluginDirectory = WoxDirectroy.Executable,
-                    Action = _ =>
-                    {
-                        TopMostRecordStorage.Instance.Remove(result);
-                        App.API.ShowMsg("Succeed");
-                        return false;
-                    }
-                };
-            }
-            else
-            {
-                return new Result(InternationalizationManager.Instance.GetTranslation("setAsTopMostInThisQuery"), "Images\\up.png")
-                {
-                    PluginDirectory = WoxDirectroy.Executable,
-                    Action = _ =>
-                    {
-                        TopMostRecordStorage.Instance.AddOrUpdate(result);
-                        App.API.ShowMsg("Succeed");
-                        return false;
-                    }
-                };
-            }
-        }
-
-
-        #endregion
+        public Result Result { get; }
 
         public override bool Equals(object obj)
         {
-            ResultViewModel r = obj as ResultViewModel;
+            var r = obj as ResultViewModel;
             if (r != null)
             {
-                return RawResult.Equals(r.RawResult);
+                return Result.Equals(r.Result);
             }
-
-            return false;
+            else
+            {
+                return false;
+            }
         }
 
         public override int GetHashCode()
         {
-            return RawResult.GetHashCode();
+            return Result.GetHashCode();
         }
 
         public override string ToString()
         {
-            return RawResult.ToString();
+            return Result.ToString();
         }
 
     }
